@@ -3,6 +3,15 @@
 
   "Description" : "Example VPC that has two public subnets and two private subnets in different AZs.",
 
+  "Parameters" : {
+    "TypeOfInstance" : {
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : ["t2.micro", "m1.small", "m1.large"],
+      "Description" : "Enter t2.micro, m1.small, or m1.large. Default is t2.micro."
+    }
+  },
+
   "Mappings" : {
     "AWSInstanceType2Arch" : {
       "t1.micro"    : { "Arch" : "64" },
@@ -362,7 +371,7 @@
     "NATDevice1" : {
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
-        "InstanceType" : "t1.micro",
+        "InstanceType" : {"Ref" : "TypeOfInstance"},
         "KeyName" : { "Ref" : "KeyName" },
         "SubnetId" : { "Ref" : "PublicSubnet1" },
         "SourceDestCheck" : "false",
@@ -391,7 +400,7 @@
       "Type" : "AWS::EC2::Instance",
       "DependsOn" : "GatewayToInternet",
       "Properties" : {
-        "InstanceType" : { "Ref" : "BastionInstanceType" },
+        "InstanceType" : {"Ref" : "TypeOfInstance"},
         "KeyName"  : { "Ref" : "KeyName" },
         "ImageId"  : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "BastionInstanceType" }, "Arch" ] } ] },
         "NetworkInterfaces" : [{
