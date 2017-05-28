@@ -1,26 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Example VPC that has two public subnets and two private subnets in different AZs NATs to enable instances in private subnets to access the internet and bastion hosts to moderate SSH access",
-
-  "Parameters" : {
-    "KeyName" : {
-      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
-      "Type" : "String",
-      "MinLength": "1",
-      "MaxLength": "64",
-      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
-      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
-    },
-
-    "BastionInstanceType" : {
-      "Description" : "Bastion instance type",
-      "Type" : "String",
-      "Default" : "t1.micro",
-      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large"],
-      "ConstraintDescription" : "must be a valid and allowed EC2 instance type."
-    }
-  },
+  "Description" : "Example VPC that has two public subnets and two private subnets in different AZs.",
 
   "Mappings" : {
     "AWSInstanceType2Arch" : {
@@ -53,7 +34,7 @@
     "VPC" : {
       "Type" : "AWS::EC2::VPC",
       "Properties" : {
-        "CidrBlock" : "10.0.0.0/16",
+        "CidrBlock" : "10.128.0.0/16",
         "Tags" : [
           {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
           {"Key" : "Network", "Value" : "Public" }
@@ -65,7 +46,7 @@
       "Type" : "AWS::EC2::Subnet",
       "Properties" : {
         "VpcId" : { "Ref" : "VPC" },
-        "CidrBlock" : "10.0.0.0/24",
+        "CidrBlock" : "10.128.0.0/24",
         "AvailabilityZone" : { "Fn::Select" : ["0", { "Fn::GetAZs" : { "Ref" : "AWS::Region" } }]},
         "Tags" : [
           {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
@@ -78,7 +59,7 @@
       "Type" : "AWS::EC2::Subnet",
       "Properties" : {
         "VpcId" : { "Ref" : "VPC" },
-        "CidrBlock" : "10.0.2.0/24",
+        "CidrBlock" : "10.128.2.0/24",
         "AvailabilityZone" : { "Fn::Select" : ["1", { "Fn::GetAZs" : { "Ref" : "AWS::Region" } }]},
         "Tags" : [
           {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
@@ -238,7 +219,7 @@
       "Type" : "AWS::EC2::Subnet",
       "Properties" : {
         "VpcId" : { "Ref" : "VPC" },
-        "CidrBlock" : "10.0.1.0/24",
+        "CidrBlock" : "10.128.1.0/24",
         "AvailabilityZone" : { "Fn::Select" : ["0", { "Fn::GetAZs" : { "Ref" : "AWS::Region" } }]},
         "Tags" : [
           {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
@@ -251,7 +232,7 @@
       "Type" : "AWS::EC2::Subnet",
       "Properties" : {
         "VpcId" : { "Ref" : "VPC" },
-        "CidrBlock" : "10.0.3.0/24",
+        "CidrBlock" : "10.128.3.0/24",
         "AvailabilityZone" : { "Fn::Select" : ["1", { "Fn::GetAZs" : { "Ref" : "AWS::Region" } }]},
         "Tags" : [
           {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
@@ -378,15 +359,6 @@
       }
     },
 
-    "NATIPAddress2" : {
-      "Type" : "AWS::EC2::EIP",
-      "DependsOn" : "GatewayToInternet",
-      "Properties" : {
-        "Domain" : "vpc",
-        "InstanceId" : { "Ref" : "NATDevice2" }
-      }
-    },
-
     "NATDevice1" : {
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
@@ -398,20 +370,7 @@
         "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }],
         "Tags" : [ {"Key" : "Name", "Value" : "NAT Device"} ]
       }
-    },
-
-    "NATDevice2" : {
-      "Type" : "AWS::EC2::Instance",
-      "Properties" : {
-        "InstanceType" : "t1.micro",
-        "KeyName" : { "Ref" : "KeyName" },
-        "SubnetId" : { "Ref" : "PublicSubnet2" },
-        "SourceDestCheck" : "false",
-        "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
-        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }],
-        "Tags" : [ {"Key" : "Name", "Value" : "NAT Device"} ]
-      }
-    },
+    }
 
     "NATSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
@@ -444,25 +403,7 @@
         }],
         "Tags" : [ {"Key" : "Name", "Value" : "Bastion Host"}, {"Key" : "Bastion", "Value" : "true"} ]
       }
-    },
-
-    "BastionHost2" : {
-      "Type" : "AWS::EC2::Instance",
-      "DependsOn" : "GatewayToInternet",
-      "Properties" : {
-        "InstanceType" : { "Ref" : "BastionInstanceType" },
-        "KeyName"  : { "Ref" : "KeyName" },
-        "ImageId"  : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "BastionInstanceType" }, "Arch" ] } ] },
-        "NetworkInterfaces" : [{
-          "GroupSet"                 : [{ "Ref" : "BastionSecurityGroup" }],
-          "AssociatePublicIpAddress" : "true",
-          "DeviceIndex"              : "0",
-          "DeleteOnTermination"      : "true",
-          "SubnetId"                 : { "Ref" : "PublicSubnet2" }
-        }],
-        "Tags" : [ {"Key" : "Name", "Value" : "Bastion Host"}, {"Key" : "Bastion", "Value" : "true"} ]
-      }
-    },
+    }
 
     "BastionSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
